@@ -25,19 +25,30 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 DEFAULT_DB_PATH = os.path.join(BASEDIR, 'feedback.db')
 default_sqlite_uri = f"sqlite:///{DEFAULT_DB_PATH}"
 
-# If DATABASE_URL is set, it still wins; otherwise we point explicitly
-# to backend/feedback.db so the UI always reflects that file.
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', default_sqlite_uri)
+# PRODUCTION UPDATED: Render provides DATABASE_URL. 
+# SQLAlchemy requires 'postgresql://' instead of 'postgres://'
+db_url = os.getenv('DATABASE_URL', default_sqlite_uri)
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = os.path.join(BASEDIR, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'csv', 'xlsx', 'xls'}
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Create uploads directory if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-CORS(app, supports_credentials=True, origins=['http://localhost:3000', 'http://127.0.0.1:3000'])
+# PRODUCTION UPDATED: Update CORS origins to include your production Vercel URL
+allowed_origins = [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000',
+    'https://your-app-name.vercel.app' # Replace with your actual Vercel URL after deployment
+]
+CORS(app, supports_credentials=True, origins=allowed_origins)
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -896,14 +907,6 @@ if __name__ == '__main__':
         print(f"Warning: Database initialization error: {e}")
         print("The application will continue, but database operations may fail.")
     
-    print("Server starting on http://localhost:5000")
-    print("API endpoints available:")
-    print("  - POST /api/feedback - Submit feedback")
-    print("  - POST /api/feedback/upload - Upload CSV/Excel file with feedback")
-    print("  - GET  /api/feedback - Get all feedbacks")
-    print("  - GET  /api/feedback/analytics - Get analytics")
-    print("  - GET  /api/feedback/urgent - Get urgent alerts")
-    print("  - GET  /api/health - Health check")
-    
-    app.run(debug=True, port=5000, host='0.0.0.0')
-
+    # Render requires the app to listen on a port defined by an environment variable
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

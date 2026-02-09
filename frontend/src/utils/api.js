@@ -1,11 +1,11 @@
 import axios from 'axios';
 
 // Create axios instance with default config
-// In development, use the proxy defined in package.json
-// In production, use the REACT_APP_API_URL environment variable
+// In development, it uses the local fallback 'http://localhost:5000'
+// In production, it uses the REACT_APP_API_URL environment variable set in Vercel
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '',
-  timeout: 10000,
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  timeout: 15000,
   withCredentials: true, // Enable cookies for session management
   headers: {
     'Content-Type': 'application/json',
@@ -41,7 +41,8 @@ api.interceptors.response.use(
     } else if (error.request) {
       // Request was made but no response received
       console.error('No response received:', error.request);
-      error.message = 'Unable to connect to the server. Please make sure the backend is running on http://localhost:5000';
+      // Updated message to be more generic for production/hosting environments
+      error.message = 'Unable to connect to the server. Please check your internet connection or backend status.';
     } else {
       // Something else happened
       console.error('Error:', error.message);
@@ -51,4 +52,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
